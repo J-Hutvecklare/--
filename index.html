@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>奶娃</title>
+<!-- 单文件，可离线打开。数据键：baby_tracker_v1 -->
+<style>
+  :root {
+    --paper: #fdf6ee;
+    --card: #ffffff;
+    --ink: #2d2d2d;
+    --muted: #666666;
+    --rose: #e85d75;
+    --green: #5cb8a5;
+    --gold: #f5c040;
+    --blue: #6b7fb5;
+    --line: #e0d8cc;
+    --radius: 12px;
+    --shadow: 4px 4px 0 rgba(0, 0, 0, 0.08);
+    --btn-shadow: 3px 3px 0 rgba(0, 0, 0, 0.1);
+    --lift-shadow: 5px 5px 0 rgba(0, 0, 0, 0.12);
+    --tabbar: calc(8px + 44px + 12px + 2px + env(safe-area-inset-bottom, 0px));
+  }
+
+  * { box-sizing: border-box; }
+
+  [hidden] { display: none !important; }
+
+  html, body {
+    margin: 0;
+    max-width: 100%;
+    min-height: 100%;
+    color: var(--ink);
+    background-color: var(--paper);
+    overflow-x: hidden;
+  }
+
+  html {
+    font-size: 16px;
+    scroll-padding-bottom: calc(var(--tabbar) + 16px);
+  }
+
+  body {
+    font-family: Nunito, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color-scheme: light;
+    background-color: var(--paper);
+    background-image: none;
+  }
+
+  ::selection { background: #f8d6a8; color: var(--ink); }
+
+  ::placeholder { color: var(--muted); opacity: 1; }
+
+  :focus { outline: none; }
+
+  :focus-visible {
+    outline: 2px solid rgba(232, 93, 117, 0.45);
+    outline-offset: 2px;
+  }
+
+  button, input, select, textarea {
+    font: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    touch-action: manipulation;
+  }
+
+  .page {
+    width: 100%;
+    max-width: 720px;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 16px 16px calc(var(--tabbar) + 16px);
+    position: relative;
+    background: var(--paper);
+    overflow-x: clip;
+  }
+
+  .sheet {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 16px 0;
+    padding: 20px 14px 14px;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  /* 和纸胶带只贴在卡片上沿，不盖住时间、奶量和次数 */
+  .sheet::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: 36px;
+    width: 72px;
+    height: 18px;
+    background: var(--gold);
+    border-radius: 9px;
+    transform: rotate(-2deg);
+    pointer-events: none;
+  }
+
+  .tape-red::before { background: var(--rose); }
+  .tape-teal::before { background: var(--green); }
+  .tape-yellow::before { background: var(--gold); }
+  .tape-blue::before { background: var(--blue); }
+
+  /* 这些类还在记录卡片上，但正文和卡片保持不旋转 */
+  .tilt-l, .tilt-r { transform: none; }
+
+  .cover { margin-top: 28px; }
+
+  .pin {
+    position: absolute;
+    top: -20px;
+    left: 8px;
+    pointer-events: none;
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  h1 {
+    margin: 0;
+    min-width: 0;
+    font-size: clamp(1.45rem, 6vw, 1.9rem);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  h2, h3 {
+    margin: 0 0 10px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  h2 { font-size: 1.25rem; }
+  h3 { font-size: 1rem; margin-bottom: 6px; }
+
+  .wave { display: block; margin: 2px 0 6px; }
+
+  .lede-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .lede, .hint, .empty, .foot p, .detail, .note, .when, .err, .status {
+    margin: 0;
+  }
+
+  .lede, .hint, .note, .status, .foot p, .empty { color: var(--muted); }
+
+  .lede, .hint, .note, .status, .foot p, .empty, .stat span {
+    font-size: 15px;
+  }
+
+  .detail, .note, .lede, .hint, .status, .empty, .when, h1 {
+    overflow-wrap: anywhere;
+  }
+
+  .stars { letter-spacing: 3px; }
+  .s1, .s2, .s3 { display: inline-block; }
+  .s1 { color: var(--rose); transform: rotate(6deg); }
+  .s2 { color: var(--green); transform: rotate(-4deg); }
+  .s3 { color: var(--gold); transform: rotate(3deg); }
+
+  .tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .tools button { flex: 1 1 140px; min-height: 44px; }
+
+  .status {
+    min-height: 1.2em;
+    margin-top: 8px;
+  }
+
+  .tabs {
+    position: fixed;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 8px max(16px, calc((100% - 720px) / 2 + 16px)) calc(12px + env(safe-area-inset-bottom, 0px));
+    background: var(--paper);
+    border: 0;
+    border-top: 2px solid var(--line);
+    border-radius: 0;
+  }
+
+  button {
+    min-height: 44px;
+    padding: 8px 10px;
+    background: var(--card);
+    color: var(--ink);
+    border: 2px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--btn-shadow);
+    cursor: pointer;
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out, background-color 200ms ease-out, border-color 200ms ease-out;
+  }
+
+  .tabs button {
+    min-height: 44px;
+    padding: 8px 8px;
+    background: var(--paper);
+  }
+
+  .mark-red { background: #fdecef; }
+  .mark-yellow { background: #fff6dc; }
+  .mark-teal { background: #e8f7f3; }
+  .mark-blue { background: #eef1f8; }
+
+  button:hover:not(:disabled) {
+    transform: translateY(-4px);
+    box-shadow: var(--lift-shadow);
+  }
+
+  .tabs button[aria-selected="true"] {
+    background: var(--card);
+    color: var(--ink);
+    border-color: var(--rose);
+  }
+
+  button:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: var(--btn-shadow);
+  }
+
+  button:disabled,
+  button:disabled:hover,
+  button:disabled:active {
+    opacity: 0.45;
+    cursor: default;
+    transform: none;
+    box-shadow: var(--btn-shadow);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0 0 8px;
+  }
+
+  .pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .choice {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    min-width: 0;
+    margin: 0 0 8px;
+  }
+
+  .choice-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 4px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 2px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 200ms ease-out, background-color 200ms ease-out;
+  }
+
+  .choice-item:has(input:checked) {
+    border-color: var(--rose);
+    background: #fdecef;
+  }
+
+  .choice-item input {
+    width: 1.1rem;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--rose);
+    background: transparent;
+    border-color: transparent;
+  }
+
+  input, select, textarea {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 2px solid rgba(232, 93, 117, 0.3);
+    border-radius: var(--radius);
+    transition: border-color 200ms ease-out;
+  }
+
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="number"] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  textarea { min-height: 72px; resize: vertical; }
+
+  form button { width: 100%; }
+
+  .err { color: var(--rose); min-height: 0; }
+  .err:not(:empty) { margin-bottom: 8px; }
+  .err.ok { color: var(--green); }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    margin: 8px 0;
+  }
+
+  .stat {
+    min-width: 0;
+    padding: 10px 10px 12px;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .stat.tone-rose { border-top: 4px solid var(--rose); }
+  .stat.tone-green { border-top: 4px solid var(--green); }
+  .stat.tone-gold { border-top: 4px solid var(--gold); }
+  .stat.tone-blue { border-top: 4px solid var(--blue); }
+
+  .stat .extra {
+    display: block;
+    margin-top: 4px;
+    color: var(--ink);
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+
+  .stat span { color: var(--muted); }
+  .stat b {
+    display: block;
+    margin-top: 2px;
+    font-size: 1.7rem;
+    font-weight: 700;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+
+  .hint { margin: 2px 0 8px; }
+
+  .day-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 4px 0 8px;
+  }
+
+  .day-nav button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  #history-date {
+    flex: 1 1 0;
+    width: 0;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .subtabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    min-width: 0;
+    margin: 0 0 12px;
+    padding: 8px;
+    background: var(--paper);
+    border: 2px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  .subtabs button {
+    min-height: 44px;
+    padding: 8px 4px;
+    background: var(--paper);
+  }
+
+  .subtabs button[aria-selected="true"] {
+    background: var(--card);
+    color: var(--ink);
+  }
+
+  .subtabs button[data-kind="feed"][aria-selected="true"] { border-color: var(--rose); }
+  .subtabs button[data-kind="diaper"][aria-selected="true"] { border-color: var(--gold); }
+  .subtabs button[data-kind="sleep"][aria-selected="true"] { border-color: var(--blue); }
+
+  .record-card form { margin: 0; min-width: 0; max-width: 100%; }
+
+  .history-tools { margin-top: 18px; margin-bottom: 4px; }
+
+  .item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    margin-bottom: 4px;
+  }
+
+  .when { font-size: 1.45rem; font-weight: 700; }
+
+  .del { flex: 0 0 auto; min-height: 44px; background: var(--card); }
+
+  .mark {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 4px;
+    vertical-align: -1px;
+    background: var(--rose);
+    border-radius: 4px;
+  }
+
+  .mark-poop { background: var(--gold); }
+  .mark-pee { background: var(--green); }
+  .mark-both { background: var(--blue); }
+  .mark-sleep { background: var(--blue); }
+
+  .note {
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .empty { margin: 12px 4px; color: var(--muted); }
+
+  .foot {
+    margin-top: 22px;
+    padding-top: 8px;
+    background: var(--paper);
+    color: var(--muted);
+  }
+
+  @media (min-width: 800px) {
+    .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<main class="page" id="app">
+  <header class="sheet cover tape-red tilt-l">
+    <svg class="pin" width="26" height="34" viewBox="0 0 26 34" aria-hidden="true">
+      <circle cx="13" cy="11" r="7" fill="#e85d75" stroke="#fdf6ee" stroke-width="2"></circle>
+      <path d="M13 18 V32" fill="none" stroke="#6b7fb5" stroke-width="2" stroke-linecap="round"></path>
+    </svg>
+    <div class="title-row">
+      <h1>奶娃</h1>
+      <svg class="clip" width="22" height="36" viewBox="0 0 22 36" aria-hidden="true">
+        <path d="M7 8 v16 a4 4 0 0 0 8 0 V10 a2.5 2.5 0 0 0 -5 0 v12" fill="none" stroke="#6b7fb5" stroke-width="2" stroke-linecap="round"></path>
+      </svg>
+    </div>
+    <svg class="wave" viewBox="0 0 160 12" width="150" height="12" aria-hidden="true">
+      <path d="M2 7 Q 20 1 40 7 T 80 7 T 120 7 T 158 7" fill="none" stroke="#e85d75" stroke-width="2" stroke-linecap="round"></path>
+    </svg>
+    <div class="lede-row">
+      <p class="lede">你的带娃记录工具</p>
+      <p class="stars" aria-hidden="true"><span class="s1">★</span><span class="s2">★</span><span class="s3">★</span></p>
+    </div>
+    <p id="status" class="status" role="status"></p>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="分页">
+    <button type="button" role="tab" data-tab="record" aria-selected="true" aria-controls="panel-record">记录</button>
+    <button type="button" role="tab" data-tab="today" aria-selected="false" aria-controls="panel-today">今日</button>
+    <button type="button" role="tab" data-tab="history" aria-selected="false" aria-controls="panel-history">历史</button>
+  </nav>
+
+  <section id="panel-record" data-panel="record" role="tabpanel">
+    <div class="sheet tape-red record-card">
+      <div class="subtabs" role="tablist" aria-label="记录类型">
+        <button type="button" role="tab" data-kind="feed" aria-selected="true">喂奶</button>
+        <button type="button" role="tab" data-kind="diaper" aria-selected="false">换尿布</button>
+        <button type="button" role="tab" data-kind="sleep" aria-selected="false">睡眠</button>
+      </div>
+    <form id="form-feed" data-kind-panel="feed" autocomplete="off" novalidate>
+      <label class="field">时间
+        <input type="datetime-local" name="time">
+      </label>
+      <label class="field">类型
+        <select name="feedType">
+          <option value="breast">亲喂</option>
+          <option value="breast_bottle">母乳瓶喂</option>
+          <option value="formula">配方奶</option>
+        </select>
+      </label>
+      <div id="breast-fields">
+        <div class="pair">
+          <label class="field">左侧分钟
+            <input name="leftMin" type="number" min="0" step="1" inputmode="decimal">
+          </label>
+          <label class="field">右侧分钟
+            <input name="rightMin" type="number" min="0" step="1" inputmode="decimal">
+          </label>
+        </div>
+      </div>
+      <div id="bottle-fields" hidden>
+        <label class="field">奶量 ml
+          <input name="amountMl" type="number" min="1" step="1" inputmode="decimal">
+        </label>
+      </div>
+      <label class="field">备注
+        <textarea name="note" rows="2" maxlength="200" placeholder="可空着"></textarea>
+      </label>
+      <p class="err" data-err></p>
+      <button type="submit" class="mark-red">保存</button>
+    </form>
+
+    <form id="form-diaper" data-kind-panel="diaper" autocomplete="off" novalidate hidden>
+      <label class="field">时间
+        <input type="datetime-local" name="time">
+      </label>
+      <div class="choice" role="radiogroup" aria-label="大便、小便或都有">
+        <label class="choice-item"><input type="radio" name="diaperKind" value="poop">大便</label>
+        <label class="choice-item"><input type="radio" name="diaperKind" value="pee">小便</label>
+        <label class="choice-item"><input type="radio" name="diaperKind" value="both">都有</label>
+      </div>
+      <label class="field">备注
+        <textarea name="note" rows="2" maxlength="200" placeholder="可空着"></textarea>
+      </label>
+      <p class="err" data-err></p>
+      <button type="submit" class="mark-yellow">保存</button>
+    </form>
+
+    <form id="form-sleep" data-kind-panel="sleep" autocomplete="off" novalidate hidden>
+      <label class="field">开始时间
+        <input type="datetime-local" name="time">
+      </label>
+      <label class="field">结束时间
+        <input type="datetime-local" name="end">
+      </label>
+      <label class="field">备注
+        <textarea name="note" rows="2" maxlength="200" placeholder="可空着"></textarea>
+      </label>
+      <p class="err" data-err></p>
+      <button type="submit" class="mark-blue">保存</button>
+    </form>
+    </div>
+  </section>
+
+  <section id="panel-today" data-panel="today" role="tabpanel" hidden>
+    <div class="stat-grid" id="today-stats" aria-label="今日统计"></div>
+    <p class="hint">亲喂只计次数，不换算毫升</p>
+    <div id="today-list"></div>
+  </section>
+
+  <section id="panel-history" data-panel="history" role="tabpanel" hidden>
+    <div class="day-nav">
+      <button type="button" id="prev-day" class="mark-teal">前一天</button>
+      <input type="date" id="history-date" aria-label="跳到这一天">
+      <button type="button" id="next-day" class="mark-teal">后一天</button>
+    </div>
+    <div class="stat-grid" id="history-stats" aria-label="当日统计"></div>
+    <p class="hint">亲喂只计次数，不换算毫升</p>
+    <div id="history-list"></div>
+    <div class="tools history-tools">
+      <button type="button" id="export-btn" class="mark-yellow">导出数据</button>
+      <button type="button" id="import-btn" class="mark-teal">导入数据</button>
+      <input id="import-file" type="file" accept="application/json,.json" hidden>
+    </div>
+  </section>
+
+  <footer class="foot" aria-hidden="true">
+    <svg class="wave" viewBox="0 0 160 12" width="150" height="12">
+      <path d="M2 6 Q 22 12 42 6 T 82 6 T 122 6 T 158 6" fill="none" stroke="#5cb8a5" stroke-width="2" stroke-linecap="round"></path>
+    </svg>
+    <p>慢慢记，就好</p>
+  </footer>
+</main>
+<noscript><p class="empty">要打开 JavaScript 才能记账。</p></noscript>
+<script>
+(function () {
+  'use strict';
+
+  /* PURE_START */
+  // 固定键名。导出的 JSON 就是 { records: [...] }，可以再导回来。
+  var STORAGE_KEY = 'baby_tracker_v1';
+
+  function pad(num) {
+    return String(num).padStart(2, '0');
+  }
+
+  function dayKeyFromDate(date) {
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+  }
+
+  function toLocalInputValue(date) {
+    return dayKeyFromDate(date) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+  }
+
+  function todayKey() {
+    return dayKeyFromDate(new Date());
+  }
+
+  // 无时区的时间当成用户本地时间；带 Z 或数字偏移的先按绝对时间，再归到本地日历日。
+  function parseTime(str) {
+    if (typeof str !== 'string') return null;
+    var text = str.trim();
+    if (!text) return null;
+    if (/(?:z|[+-]\d{2}:?\d{2})$/i.test(text)) {
+      var zoned = new Date(text);
+      return Number.isNaN(zoned.getTime()) ? null : zoned;
+    }
+    var match = /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(text);
+    if (!match) {
+      var fallback = new Date(text);
+      return Number.isNaN(fallback.getTime()) ? null : fallback;
+    }
+    var year = Number(match[1]);
+    var month = Number(match[2]);
+    var day = Number(match[3]);
+    var hour = Number(match[4] || '0');
+    var minute = Number(match[5] || '0');
+    var second = Number(match[6] || '0');
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    if (hour > 23 || minute > 59 || second > 59) return null;
+    var date = new Date(year, month - 1, day, hour, minute, second);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+    return date;
+  }
+
+  function localDayOf(str) {
+    var date = parseTime(str);
+    if (!date) return '';
+    return dayKeyFromDate(date);
+  }
+
+  function timeValue(str) {
+    var date = parseTime(str);
+    return date ? date.getTime() : 0;
+  }
+
+  function addDays(dateKey, delta) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+    if (!match) return '';
+    var date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    date.setDate(date.getDate() + delta);
+    return dayKeyFromDate(date);
+  }
+
+  // 历史日期不能走到今天之后。走不过去时停在原日。
+  function shiftDate(current, delta, today) {
+    var next = addDays(current, delta);
+    if (!next || next > today) return current;
+    return next;
+  }
+
+  function parseAmount(raw) {
+    var text = String(raw == null ? '' : raw).trim();
+    if (text === '') return { ok: false, empty: true, value: 0 };
+    if (!/^(?:\d+\.?\d*|\.\d+)$/.test(text)) return { ok: false, empty: false, value: 0 };
+    var value = Number(text);
+    if (!Number.isFinite(value) || value < 0) return { ok: false, empty: false, value: 0 };
+    return { ok: true, empty: false, value: value };
+  }
+
+  function validateFeedInput(input) {
+    var time = String(input.time || '').trim();
+    if (!parseTime(time)) return { ok: false, message: '时间没填好' };
+    var note = String(input.note || '').trim().slice(0, 200);
+    if (input.feedType === 'breast') {
+      var left = parseAmount(input.left);
+      var right = parseAmount(input.right);
+      if (!left.ok || !right.ok) {
+        var invalid = (!left.ok && !left.empty) || (!right.ok && !right.empty);
+        return { ok: false, message: invalid ? '分钟要填不小于 0 的数字' : '左右分钟都要填' };
+      }
+      if (left.value === 0 && right.value === 0) return { ok: false, message: '至少一侧要大于 0' };
+      return {
+        ok: true,
+        message: '',
+        record: { type: 'feed', time: time, feedType: 'breast', leftMin: left.value, rightMin: right.value, note: note }
+      };
+    }
+    if (input.feedType !== 'breast_bottle' && input.feedType !== 'formula') {
+      return { ok: false, message: '类型没选好' };
+    }
+    var ml = parseAmount(input.amount);
+    if (!ml.ok || ml.value <= 0) {
+      return { ok: false, message: ml.empty ? '奶量要填' : '奶量要填大于 0 的数字' };
+    }
+    return {
+      ok: true,
+      message: '',
+      record: { type: 'feed', time: time, feedType: input.feedType, amountMl: ml.value, note: note }
+    };
+  }
+
+  function validateDiaperInput(input) {
+    var time = String(input.time || '').trim();
+    if (!parseTime(time)) return { ok: false, message: '时间没填好' };
+    if (input.kind !== 'poop' && input.kind !== 'pee' && input.kind !== 'both') {
+      return { ok: false, message: '要选大便、小便或都有' };
+    }
+    var note = String(input.note || '').trim().slice(0, 200);
+    return { ok: true, message: '', record: { type: input.kind, time: time, note: note } };
+  }
+
+  function validateSleepInput(input) {
+    var start = String(input.start || '').trim();
+    if (!parseTime(start)) return { ok: false, message: '开始时间没填好' };
+    var note = String(input.note || '').trim().slice(0, 200);
+    var end = String(input.end || '').trim();
+    var record = { type: 'sleep', time: start, note: note };
+    if (!end) return { ok: true, message: '', record: record };
+    if (!parseTime(end)) return { ok: false, message: '结束时间没填好' };
+    if (parseTime(end).getTime() <= parseTime(start).getTime()) {
+      return { ok: false, message: '结束时间要晚于开始时间' };
+    }
+    record.end = end;
+    return { ok: true, message: '', record: record };
+  }
+
+  function prettyNumber(value) {
+    var num = Number(value);
+    if (!Number.isFinite(num)) return '0';
+    return String(Math.round(num * 10) / 10);
+  }
+
+  function clockText(timeStr) {
+    var date = parseTime(timeStr);
+    if (!date) return String(timeStr || '');
+    return pad(date.getHours()) + ':' + pad(date.getMinutes());
+  }
+
+  // 结束空着、或结束不晚于开始时，不编造时长。
+  function sleepSpanMs(rec) {
+    if (!rec || typeof rec.end !== 'string' || !rec.end.trim()) return null;
+    var start = parseTime(rec.time);
+    var end = parseTime(rec.end);
+    if (!start || !end) return null;
+    var diff = end.getTime() - start.getTime();
+    return diff > 0 ? diff : null;
+  }
+
+  function formatDuration(ms) {
+    if (!(ms > 0)) return '';
+    var totalMin = Math.floor(ms / 60000);
+    if (totalMin < 1) return '不足 1 分';
+    var hours = Math.floor(totalMin / 60);
+    var mins = totalMin % 60;
+    if (hours && mins) return hours + ' 小时 ' + mins + ' 分';
+    if (hours) return hours + ' 小时';
+    return mins + ' 分';
+  }
+
+  function describe(rec) {
+    if (rec.type === 'poop') return '大便';
+    if (rec.type === 'pee') return '小便';
+    if (rec.type === 'both') return '都有';
+    if (rec.type === 'sleep') {
+      var text = '开始 ' + clockText(rec.time);
+      if (typeof rec.end === 'string' && rec.end.trim()) {
+        text += ' · 结束 ' + clockText(rec.end);
+        var span = sleepSpanMs(rec);
+        if (span != null) text += ' · ' + formatDuration(span);
+        return text;
+      }
+      return text + ' · 还在睡';
+    }
+    if (rec.feedType === 'breast') {
+      return '亲喂 · 左 ' + prettyNumber(rec.leftMin) + ' 分 · 右 ' + prettyNumber(rec.rightMin) + ' 分';
+    }
+    var name = rec.feedType === 'formula' ? '配方奶' : '母乳瓶喂';
+    return name + ' · ' + prettyNumber(rec.amountMl) + ' ml';
+  }
+
+  function nonNegative(value) {
+    var num = Number(value);
+    if (!Number.isFinite(num) || num < 0) return 0;
+    return num;
+  }
+
+  // 母乳瓶喂和配方奶分开计毫升。亲喂只计入喂奶次数。睡眠按开始时间归到当天。
+  function summarize(records, dateKey) {
+    var rows = [];
+    for (var i = 0; i < records.length; i += 1) {
+      if (localDayOf(records[i].time) === dateKey) rows.push({ rec: records[i], index: i });
+    }
+    rows.sort(function (a, b) {
+      var delta = timeValue(b.rec.time) - timeValue(a.rec.time);
+      if (delta !== 0) return delta;
+      return b.index - a.index;
+    });
+    var feedCount = 0;
+    var breastBottleMl = 0;
+    var formulaMl = 0;
+    var poopCount = 0;
+    var peeCount = 0;
+    var sleepCount = 0;
+    var sleepMs = 0;
+    var list = [];
+    for (var n = 0; n < rows.length; n += 1) {
+      var rec = rows[n].rec;
+      list.push(rec);
+      if (rec.type === 'feed') {
+        feedCount += 1;
+        if (rec.feedType === 'breast_bottle') breastBottleMl += nonNegative(rec.amountMl);
+        else if (rec.feedType === 'formula') formulaMl += nonNegative(rec.amountMl);
+      } else if (rec.type === 'poop') {
+        poopCount += 1;
+      } else if (rec.type === 'pee') {
+        peeCount += 1;
+      } else if (rec.type === 'both') {
+        // 都有：大便和小便各计 1 次。旧的分开记录仍按各自类型计数。
+        poopCount += 1;
+        peeCount += 1;
+      } else if (rec.type === 'sleep') {
+        sleepCount += 1;
+        var span = sleepSpanMs(rec);
+        if (span != null) sleepMs += span;
+      }
+    }
+    return {
+      list: list,
+      feedCount: feedCount,
+      breastBottleMl: Math.round(breastBottleMl * 10) / 10,
+      formulaMl: Math.round(formulaMl * 10) / 10,
+      poopCount: poopCount,
+      peeCount: peeCount,
+      sleepCount: sleepCount,
+      sleepMs: sleepMs
+    };
+  }
+
+  // 只按 id 删除一条。
+  function removeRecord(records, id) {
+    return records.filter(function (rec) { return rec.id !== id; });
+  }
+
+  function safeUuid() {
+    try {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    } catch (err) { return ''; }
+    return '';
+  }
+
+  function fallbackId() {
+    return 'r-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function createId(seen) {
+    for (var i = 0; i < 6; i += 1) {
+      var id = safeUuid() || fallbackId();
+      if (!seen || !seen.has(id)) return id;
+    }
+    return fallbackId() + fallbackId();
+  }
+
+  function normalizeRecord(raw, seen) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    var type = raw.type;
+    if (type !== 'feed' && type !== 'poop' && type !== 'pee' && type !== 'both' && type !== 'sleep') return null;
+    if (typeof raw.time !== 'string' || !parseTime(raw.time)) return null;
+    var note = typeof raw.note === 'string' ? raw.note.trim().slice(0, 200) : '';
+    var feedType = '';
+    var leftMin = 0;
+    var rightMin = 0;
+    var amountMl = 0;
+    var end = '';
+    if (type === 'sleep' && typeof raw.end === 'string' && raw.end.trim() && parseTime(raw.end)) {
+      end = raw.end.trim();
+    }
+    if (type === 'feed') {
+      if (raw.feedType === 'breast') {
+        feedType = 'breast';
+        leftMin = nonNegative(raw.leftMin);
+        rightMin = nonNegative(raw.rightMin);
+      } else if (raw.feedType === 'breast_bottle' || raw.feedType === 'formula') {
+        feedType = raw.feedType;
+        amountMl = nonNegative(raw.amountMl);
+      } else {
+        return null;
+      }
+    }
+    var id = typeof raw.id === 'string' ? raw.id.trim() : '';
+    if (!id || seen.has(id)) id = createId(seen);
+    seen.add(id);
+    var rec = { id: id, type: type, time: raw.time.trim(), note: note };
+    if (feedType) rec.feedType = feedType;
+    if (feedType === 'breast') {
+      rec.leftMin = leftMin;
+      rec.rightMin = rightMin;
+    } else if (feedType) {
+      rec.amountMl = amountMl;
+    }
+    if (type === 'sleep' && end) rec.end = end;
+    return rec;
+  }
+
+  function sanitize(raw) {
+    var seen = new Set();
+    var records = [];
+    var list = raw && Array.isArray(raw.records) ? raw.records : [];
+    for (var i = 0; i < list.length; i += 1) {
+      var rec = normalizeRecord(list[i], seen);
+      if (rec) records.push(rec);
+    }
+    return { records: records };
+  }
+  /* PURE_END */
+
+  var data = loadData();
+  var currentTab = 'record';
+  var historyDate = todayKey();
+  var lastSeenToday = historyDate;
+  var statusTimer = 0;
+
+  function loadData() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { records: [] };
+      return sanitize(JSON.parse(raw));
+    } catch (err) {
+      return { records: [] };
+    }
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      return true;
+    } catch (err) {
+      alert('浏览器存不下了，先导出备份吧。');
+      return false;
+    }
+  }
+
+  function setStatus(text) {
+    var el = document.getElementById('status');
+    el.textContent = text;
+    if (statusTimer) clearTimeout(statusTimer);
+    statusTimer = setTimeout(function () { el.textContent = ''; }, 2200);
+  }
+
+  function clearFormMessage(form) {
+    var el = form.querySelector('[data-err]');
+    el.textContent = '';
+    el.classList.remove('ok');
+  }
+
+  function showFormMessage(form, text, ok) {
+    var el = form.querySelector('[data-err]');
+    el.textContent = text;
+    el.classList.toggle('ok', !!ok);
+  }
+
+  function stampNow(input) {
+    input.value = toLocalInputValue(new Date());
+    input.dataset.touched = '0';
+  }
+
+  // 没改过时间就用提交当时；改过就保留用户选的本地时间。
+  function currentTimeValue(input) {
+    if (input.dataset.touched !== '1') stampNow(input);
+    return input.value.trim();
+  }
+
+  function bindTimeInput(input) {
+    stampNow(input);
+    input.addEventListener('input', function () { input.dataset.touched = '1'; });
+  }
+
+  function usedIds() {
+    var seen = new Set();
+    data.records.forEach(function (rec) { seen.add(rec.id); });
+    return seen;
+  }
+
+  function refreshViews() {
+    renderToday();
+    renderHistory();
+  }
+
+  function renderStatGrid(container, summary) {
+    container.replaceChildren();
+    function card(label, value, tone, extra) {
+      var div = document.createElement('div');
+      div.className = 'stat tone-' + tone;
+      var span = document.createElement('span');
+      span.textContent = label;
+      var strong = document.createElement('b');
+      strong.textContent = value;
+      div.append(span, strong);
+      if (extra) {
+        var line = document.createElement('span');
+        line.className = 'extra';
+        line.textContent = extra;
+        div.appendChild(line);
+      }
+      container.appendChild(div);
+    }
+    card('喂奶次数', String(summary.feedCount), 'rose');
+    if (summary.breastBottleMl > 0) card('母乳瓶喂', prettyNumber(summary.breastBottleMl) + ' ml', 'rose');
+    if (summary.formulaMl > 0) card('配方奶', prettyNumber(summary.formulaMl) + ' ml', 'gold');
+    card('大便次数', String(summary.poopCount), 'gold');
+    card('小便次数', String(summary.peeCount), 'green');
+    if (summary.sleepCount > 0) {
+      card('睡眠次数', String(summary.sleepCount), 'blue', summary.sleepMs > 0 ? formatDuration(summary.sleepMs) : '');
+    }
+  }
+
+  function formatClock(timeStr) {
+    var date = parseTime(timeStr);
+    if (!date) return timeStr;
+    return pad(date.getHours()) + ':' + pad(date.getMinutes());
+  }
+
+  function buildItem(rec, index) {
+    var article = document.createElement('article');
+    var tilt = index % 2 === 0 ? 'tilt-l' : 'tilt-r';
+    var tape = rec.type === 'poop' ? 'tape-yellow' : rec.type === 'pee' ? 'tape-teal' : (rec.type === 'both' || rec.type === 'sleep') ? 'tape-blue' : 'tape-red';
+    article.className = 'sheet ' + tape + ' ' + tilt;
+    var top = document.createElement('div');
+    top.className = 'item-top';
+    var when = document.createElement('p');
+    when.className = 'when';
+    when.textContent = formatClock(rec.time);
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'del';
+    del.setAttribute('data-del', rec.id);
+    del.textContent = '删掉';
+    del.setAttribute('aria-label', '删掉 ' + formatClock(rec.time) + ' ' + describe(rec));
+    top.append(when, del);
+    var detail = document.createElement('p');
+    detail.className = 'detail';
+    var mark = document.createElement('span');
+    mark.className = 'mark' + (rec.type === 'feed' ? '' : ' mark-' + rec.type);
+    mark.setAttribute('aria-hidden', 'true');
+    detail.append(mark, document.createTextNode(describe(rec)));
+    article.append(top, detail);
+    if (rec.note) {
+      var note = document.createElement('p');
+      note.className = 'note';
+      note.textContent = rec.note;
+      article.appendChild(note);
+    }
+    return article;
+  }
+
+  function renderList(container, list, emptyText) {
+    container.replaceChildren();
+    if (!list.length) {
+      var empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = emptyText;
+      container.appendChild(empty);
+      return;
+    }
+    list.forEach(function (rec, index) { container.appendChild(buildItem(rec, index)); });
+  }
+
+  function renderToday() {
+    var summary = summarize(data.records, todayKey());
+    renderStatGrid(document.getElementById('today-stats'), summary);
+    renderList(document.getElementById('today-list'), summary.list, '今天还是空白页。');
+  }
+
+  function renderHistory() {
+    var today = todayKey();
+    if (historyDate > today) historyDate = today;
+    document.getElementById('next-day').disabled = historyDate >= today;
+    var picker = document.getElementById('history-date');
+    picker.max = today;
+    picker.value = historyDate;
+    var summary = summarize(data.records, historyDate);
+    renderStatGrid(document.getElementById('history-stats'), summary);
+    renderList(document.getElementById('history-list'), summary.list, '这天静悄悄。');
+  }
+
+  function showKind(kind) {
+    document.querySelectorAll('[data-kind]').forEach(function (button) {
+      button.setAttribute('aria-selected', button.dataset.kind === kind ? 'true' : 'false');
+    });
+    document.querySelectorAll('[data-kind-panel]').forEach(function (panel) {
+      panel.hidden = panel.dataset.kindPanel !== kind;
+    });
+  }
+
+  function showTab(name) {
+    currentTab = name;
+    document.querySelectorAll('[data-panel]').forEach(function (panel) {
+      panel.hidden = panel.dataset.panel !== name;
+    });
+    document.querySelectorAll('[data-tab]').forEach(function (button) {
+      var on = button.dataset.tab === name;
+      button.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    if (name === 'today') renderToday();
+    if (name === 'history') renderHistory();
+  }
+
+  function syncFeedFields() {
+    var breast = document.querySelector('#form-feed [name="feedType"]').value === 'breast';
+    document.getElementById('breast-fields').hidden = !breast;
+    document.getElementById('bottle-fields').hidden = breast;
+  }
+
+  function remember(record) {
+    var rec = normalizeRecord(Object.assign({ id: createId(usedIds()) }, record), usedIds());
+    if (!rec) return;
+    data.records.push(rec);
+    persist();
+    refreshViews();
+  }
+
+  function bindFeedForm() {
+    var form = document.getElementById('form-feed');
+    bindTimeInput(form.querySelector('[name="time"]'));
+    form.addEventListener('input', function () { clearFormMessage(form); });
+    form.querySelector('[name="feedType"]').addEventListener('change', function () {
+      syncFeedFields();
+      clearFormMessage(form);
+    });
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var result = validateFeedInput({
+        time: currentTimeValue(form.querySelector('[name="time"]')),
+        feedType: form.querySelector('[name="feedType"]').value,
+        left: form.elements.leftMin.value,
+        right: form.elements.rightMin.value,
+        amount: form.elements.amountMl.value,
+        note: form.elements.note.value
+      });
+      if (!result.ok) {
+        showFormMessage(form, result.message, false);
+        return;
+      }
+      remember(result.record);
+      form.elements.leftMin.value = '';
+      form.elements.rightMin.value = '';
+      form.elements.amountMl.value = '';
+      form.elements.note.value = '';
+      stampNow(form.querySelector('[name="time"]'));
+      showFormMessage(form, '记下了', true);
+      setStatus('记下了');
+    });
+  }
+
+  function bindDiaperForm() {
+    var form = document.getElementById('form-diaper');
+    bindTimeInput(form.querySelector('[name="time"]'));
+    form.addEventListener('input', function () { clearFormMessage(form); });
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var picked = form.querySelector('[name="diaperKind"]:checked');
+      var result = validateDiaperInput({
+        kind: picked ? picked.value : '',
+        time: currentTimeValue(form.querySelector('[name="time"]')),
+        note: form.elements.note.value
+      });
+      if (!result.ok) {
+        showFormMessage(form, result.message, false);
+        return;
+      }
+      remember(result.record);
+      form.elements.note.value = '';
+      form.querySelectorAll('[name="diaperKind"]').forEach(function (el) { el.checked = false; });
+      stampNow(form.querySelector('[name="time"]'));
+      showFormMessage(form, '记下了', true);
+      setStatus('记下了');
+    });
+  }
+
+  function bindSleepForm() {
+    var form = document.getElementById('form-sleep');
+    bindTimeInput(form.querySelector('[name="time"]'));
+    form.addEventListener('input', function () { clearFormMessage(form); });
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var result = validateSleepInput({
+        start: currentTimeValue(form.querySelector('[name="time"]')),
+        end: form.elements.end.value,
+        note: form.elements.note.value
+      });
+      if (!result.ok) {
+        showFormMessage(form, result.message, false);
+        return;
+      }
+      remember(result.record);
+      form.elements.end.value = '';
+      form.elements.note.value = '';
+      stampNow(form.querySelector('[name="time"]'));
+      showFormMessage(form, '记下了', true);
+      setStatus('记下了');
+    });
+  }
+
+  // 日期选择器只能落到今天或更早，选中后直接打开那一天。
+  function jumpHistory(value) {
+    var today = todayKey();
+    var next = addDays(value, 0);
+    if (!next || next !== value || next > today) {
+      document.getElementById('history-date').value = historyDate;
+      return;
+    }
+    historyDate = next;
+    renderHistory();
+  }
+
+  function exportJson() {
+    var payload = sanitize(data);
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'baby-tracker-' + todayKey() + '.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    setStatus('导出好了');
+  }
+
+  // 先读文件，格式不对就不覆盖。格式对了，确认后才整份换掉。
+  function importJson(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed;
+      try {
+        parsed = JSON.parse(String(reader.result).replace(/^\uFEFF/, ''));
+      } catch (err) {
+        alert('这份 JSON 认不出，没有导入。');
+        return;
+      }
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.records)) {
+        alert('这份 JSON 认不出，没有导入。');
+        return;
+      }
+      var next = sanitize(parsed);
+      if (parsed.records.length > 0 && next.records.length === 0) {
+        alert('里面没有能用的记录，没有覆盖。');
+        return;
+      }
+      if (!confirm('导入会覆盖现有全部记录，确定吗？')) return;
+      var skipped = parsed.records.length - next.records.length;
+      data = next;
+      persist();
+      historyDate = todayKey();
+      lastSeenToday = historyDate;
+      refreshViews();
+      setStatus(skipped > 0 ? '导入好了，跳过 ' + skipped + ' 条' : '已经换成导入的记录');
+    };
+    reader.onerror = function () { alert('文件没有读出来。'); };
+    reader.readAsText(file);
+  }
+
+  function catchUpDay() {
+    var today = todayKey();
+    if (today === lastSeenToday) return;
+    lastSeenToday = today;
+    if (historyDate > today) historyDate = today;
+    refreshViews();
+  }
+
+  document.getElementById('tabs').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-tab]');
+    if (!button) return;
+    showTab(button.dataset.tab);
+  });
+
+  document.querySelector('.subtabs').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-kind]');
+    if (!button) return;
+    showKind(button.dataset.kind);
+  });
+
+  document.getElementById('app').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-del]');
+    if (!button) return;
+    var id = button.getAttribute('data-del');
+    var next = removeRecord(data.records, id);
+    if (next.length === data.records.length) return;
+    data.records = next;
+    persist();
+    refreshViews();
+    setStatus('删掉了');
+  });
+
+  document.getElementById('prev-day').addEventListener('click', function () {
+    historyDate = shiftDate(historyDate, -1, todayKey());
+    renderHistory();
+  });
+
+  document.getElementById('next-day').addEventListener('click', function () {
+    historyDate = shiftDate(historyDate, 1, todayKey());
+    renderHistory();
+  });
+
+  document.getElementById('history-date').addEventListener('change', function (event) {
+    jumpHistory(event.target.value);
+  });
+
+  document.getElementById('export-btn').addEventListener('click', exportJson);
+  document.getElementById('import-btn').addEventListener('click', function () {
+    document.getElementById('import-file').click();
+  });
+  document.getElementById('import-file').addEventListener('change', function (event) {
+    var file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (file) importJson(file);
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) catchUpDay();
+  });
+  window.addEventListener('pageshow', catchUpDay);
+  setInterval(catchUpDay, 30000);
+
+  syncFeedFields();
+  bindFeedForm();
+  bindDiaperForm();
+  bindSleepForm();
+  showKind('feed');
+  showTab('record');
+  renderToday();
+  renderHistory();
+})();
+</script>
+</body>
+</html>
