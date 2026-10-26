@@ -1,4 +1,4 @@
-var CACHE = 'baby-tracker-v10';
+var CACHE = 'baby-tracker-v13';
 
 var PRECACHE = [
   './',
