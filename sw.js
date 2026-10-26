@@ -1,10 +1,11 @@
-var CACHE = 'baby-tracker-v1';
+var CACHE = 'baby-tracker-v4';
 
 var PRECACHE = [
   './',
   './index.html',
   './baby-tracker.html',
-  './manifest.json'
+  './manifest.json',
+  './feeding-bottle.png'
 ];
 
 self.addEventListener('install', function (event) {
@@ -13,6 +14,7 @@ self.addEventListener('install', function (event) {
       return cache.addAll(PRECACHE);
     })
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', function (event) {
