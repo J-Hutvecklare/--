@@ -955,7 +955,7 @@
     var milkLines = [];
     if (summary.breastBottleMl > 0) milkLines.push('母乳瓶喂 ' + prettyNumber(summary.breastBottleMl) + ' ml');
     if (summary.formulaMl > 0) milkLines.push('配方奶 ' + prettyNumber(summary.formulaMl) + ' ml');
-    card('喂奶', summary.feedCount + ' 次', 'rose', milkLines);
+    card('喂奶次数', String(summary.feedCount), 'rose', milkLines);
     card('大便次数', String(summary.poopCount), 'gold');
     card('小便次数', String(summary.peeCount), 'green');
     var durationText = summary.sleepMs > 0 ? formatDuration(summary.sleepMs) : '0 分';

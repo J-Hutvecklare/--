@@ -90,10 +90,12 @@
     </form>
 
     <form id="form-diaper" data-kind-panel="diaper" autocomplete="off" novalidate hidden>
-      <div class="field">
-        <label id="label-diaper-time" for="diaper-time-btn">时间</label>
-        <button type="button" id="diaper-time-btn" class="time-field" aria-labelledby="label-diaper-time diaper-time-text"><span class="time-field-text is-empty" id="diaper-time-text">选择时间</span></button>
-        <input type="hidden" name="time" data-time="now">
+      <div class="time-stack">
+        <div class="time-line">
+          <label id="label-diaper-time" for="diaper-time-btn">时间</label>
+          <button type="button" id="diaper-time-btn" class="time-field" aria-labelledby="label-diaper-time diaper-time-text"><span class="time-field-text is-empty" id="diaper-time-text">选择时间</span></button>
+          <input type="hidden" name="time" data-time="now">
+        </div>
       </div>
       <div class="choice" role="radiogroup" aria-label="大便、小便或都有">
         <label class="choice-item"><input type="radio" name="diaperKind" value="poop">大便</label>
@@ -108,15 +110,17 @@
     </form>
 
     <form id="form-sleep" data-kind-panel="sleep" autocomplete="off" novalidate hidden>
-      <div class="field">
-        <label id="label-sleep-start" for="sleep-start-btn">开始时间</label>
-        <button type="button" id="sleep-start-btn" class="time-field" aria-labelledby="label-sleep-start sleep-start-text"><span class="time-field-text is-empty" id="sleep-start-text">选择时间</span></button>
-        <input type="hidden" name="time" data-time="now">
-      </div>
-      <div class="field">
-        <label id="label-sleep-end" for="sleep-end-btn">结束时间</label>
-        <button type="button" id="sleep-end-btn" class="time-field" aria-labelledby="label-sleep-end sleep-end-text"><span class="time-field-text is-empty" id="sleep-end-text">选择时间</span></button>
-        <input type="hidden" name="end" data-time="empty">
+      <div class="time-stack">
+        <div class="time-line">
+          <label id="label-sleep-start" for="sleep-start-btn">开始时间</label>
+          <button type="button" id="sleep-start-btn" class="time-field" aria-labelledby="label-sleep-start sleep-start-text"><span class="time-field-text is-empty" id="sleep-start-text">选择时间</span></button>
+          <input type="hidden" name="time" data-time="now">
+        </div>
+        <div class="time-line">
+          <label id="label-sleep-end" for="sleep-end-btn">结束时间</label>
+          <button type="button" id="sleep-end-btn" class="time-field" aria-labelledby="label-sleep-end sleep-end-text"><span class="time-field-text is-empty" id="sleep-end-text">选择时间</span></button>
+          <input type="hidden" name="end" data-time="empty">
+        </div>
       </div>
       <label class="field" for="sleep-note">备注
         <textarea id="sleep-note" name="note" rows="2" maxlength="200" placeholder="可空着"></textarea>
