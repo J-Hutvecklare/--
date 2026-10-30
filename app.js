@@ -478,6 +478,14 @@
     paintTimeField(input);
   }
 
+  function refreshUntouchedTimes() {
+    document.querySelectorAll('[data-time="now"]').forEach(function (input) {
+      if (input.dataset.touched === '1') return;
+      if (input === activeTimeInput) return;
+      stampNow(input);
+    });
+  }
+
   function clearTime(input) {
     input.value = '';
     input.dataset.touched = '0';
@@ -990,36 +998,163 @@
     return pad(date.getHours()) + ':' + pad(date.getMinutes());
   }
 
-  function rowSummary(rec) {
-    var hasEnd = typeof rec.end === 'string' && rec.end.trim() && parseTime(rec.end);
-    var later = false;
-    if (hasEnd) {
-      var startDate = parseTime(rec.time);
-      var endDate = parseTime(rec.end);
-      later = !!(startDate && endDate && endDate.getTime() > startDate.getTime());
+  function primaryLine(rec) {
+    var parts = [formatClock(rec.time)];
+    if (rec.type === 'poop') parts.push('大便');
+    else if (rec.type === 'pee') parts.push('小便');
+    else if (rec.type === 'both') parts.push('都有');
+    else if (rec.type === 'sleep') {
+      parts.push('睡眠');
+      var span = sleepSpanMs(rec);
+      if (span != null) parts.push(formatDuration(span));
+      else if (!(typeof rec.end === 'string' && rec.end.trim())) parts.push('还在睡');
+    } else if (rec.feedType === 'breast') {
+      parts.push('亲喂');
+      parts.push('左 ' + prettyNumber(rec.leftMin) + ' 分');
+      parts.push('右 ' + prettyNumber(rec.rightMin) + ' 分');
+    } else if (rec.type === 'feed') {
+      parts.push(rec.feedType === 'formula' ? '配方奶' : '母乳瓶喂');
+      parts.push(prettyNumber(rec.amountMl) + ' ml');
     }
-    var showRange = rec.type === 'feed' ? later : hasEnd;
-    var when = showRange ? clockText(rec.time) + '–' + clockText(rec.end) : formatClock(rec.time);
-    var parts = [when];
-    var detail = describe(rec);
-    if (detail) parts.push(detail);
-    if (rec.note) parts.push(rec.note);
     return parts.join(' · ');
+  }
+
+  function rangeLine(rec) {
+    if (typeof rec.end !== 'string' || !rec.end.trim() || !parseTime(rec.end)) return '';
+    return clockText(rec.time) + '–' + clockText(rec.end);
+  }
+
+  var SWIPE_OPEN = 72;
+
+  function closeSwipes(except) {
+    document.querySelectorAll('.log-row.is-open').forEach(function (row) {
+      if (row === except) return;
+      var main = row.querySelector('.log-main');
+      row.classList.remove('is-open');
+      if (!main) return;
+      main.classList.add('is-snapping');
+      main.style.transform = '';
+    });
+  }
+
+  function bindSwipe(row) {
+    var main = row.querySelector('.log-main');
+    if (!main) return;
+    var startX = 0;
+    var startY = 0;
+    var base = 0;
+    var dragging = false;
+    var axis = '';
+
+    function paint(x) {
+      var next = x;
+      if (next > 0) next = 0;
+      if (next < -SWIPE_OPEN) next = -SWIPE_OPEN;
+      main.style.transform = next === 0 ? '' : 'translateX(' + next + 'px)';
+    }
+
+    main.addEventListener('pointerdown', function (event) {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      if (event.target.closest('.edit')) return;
+      closeSwipes(row);
+      dragging = true;
+      axis = '';
+      startX = event.clientX;
+      startY = event.clientY;
+      base = row.classList.contains('is-open') ? -SWIPE_OPEN : 0;
+      main.classList.add('is-dragging');
+      main.classList.remove('is-snapping');
+      try {
+        if (main.setPointerCapture) main.setPointerCapture(event.pointerId);
+      } catch (err) {}
+    });
+
+    main.addEventListener('pointermove', function (event) {
+      if (!dragging) return;
+      var dx = event.clientX - startX;
+      var dy = event.clientY - startY;
+      if (!axis) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        if (axis !== 'x') {
+          dragging = false;
+          main.classList.remove('is-dragging');
+          return;
+        }
+      }
+      if (axis !== 'x') return;
+      if (event.cancelable) event.preventDefault();
+      paint(base + dx);
+    });
+
+    function finish(event) {
+      if (!dragging) return;
+      dragging = false;
+      main.classList.remove('is-dragging');
+      main.classList.add('is-snapping');
+      if (axis !== 'x') {
+        axis = '';
+        return;
+      }
+      var next = base + (event.clientX - startX);
+      if (next < -SWIPE_OPEN / 2) {
+        row.classList.add('is-open');
+        paint(-SWIPE_OPEN);
+      } else {
+        row.classList.remove('is-open');
+        paint(0);
+      }
+      axis = '';
+    }
+
+    main.addEventListener('pointerup', finish);
+    main.addEventListener('pointercancel', finish);
+
+    var del = row.querySelector('.log-delete');
+    if (del) {
+      del.addEventListener('focus', function () {
+        closeSwipes(row);
+        row.classList.add('is-open');
+        main.classList.add('is-snapping');
+        paint(-SWIPE_OPEN);
+      });
+    }
   }
 
   function buildItem(rec) {
     var row = document.createElement('li');
     row.className = 'log-row';
-    var text = document.createElement('p');
+    var summary = primaryLine(rec);
+    var range = rangeLine(rec);
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'log-delete';
+    del.setAttribute('data-delete', rec.id);
+    del.textContent = '删除';
+    del.setAttribute('aria-label', '删除 ' + summary);
+    var main = document.createElement('div');
+    main.className = 'log-main';
+    var text = document.createElement('div');
     text.className = 'log-text';
-    text.textContent = rowSummary(rec);
+    var line = document.createElement('p');
+    line.className = 'log-line';
+    line.textContent = summary;
+    text.appendChild(line);
+    if (range) {
+      var second = document.createElement('p');
+      second.className = 'log-line';
+      second.textContent = range;
+      text.appendChild(second);
+    }
     var edit = document.createElement('button');
     edit.type = 'button';
     edit.className = 'edit';
     edit.setAttribute('data-edit', rec.id);
     edit.textContent = '编辑';
-    edit.setAttribute('aria-label', '编辑 ' + rowSummary(rec));
-    row.append(text, edit);
+    edit.setAttribute('aria-label', '编辑 ' + (range ? summary + '，' + range : summary));
+    main.append(text, edit);
+    row.append(del, main);
+    bindSwipe(row);
     return row;
   }
 
@@ -1042,7 +1177,7 @@
   function renderToday() {
     var summary = summarize(data.records, todayKey());
     renderStatGrid(document.getElementById('today-stats'), summary);
-    renderList(document.getElementById('today-list'), summary.list, '今天还安静着，记下一笔就好。');
+    renderList(document.getElementById('today-list'), summary.list, '今天还没记录哦😄');
   }
 
   function monthDayLabel(dateKey) {
@@ -1060,12 +1195,8 @@
     picker.value = historyDate;
     document.getElementById('history-md').textContent = monthDayLabel(historyDate);
     var summary = summarize(data.records, historyDate);
-    var quiet = summary.list.length === 0;
-    document.getElementById('history-stats').hidden = quiet;
-    document.getElementById('history-hint').hidden = quiet;
-    document.getElementById('history-empty').hidden = !quiet;
-    if (quiet) document.getElementById('history-stats').replaceChildren();
-    else renderHistoryStats(document.getElementById('history-stats'), summary);
+    renderStatGrid(document.getElementById('history-stats'), summary);
+    renderList(document.getElementById('history-list'), summary.list, '这一天还没记下。');
   }
 
   function showKind(kind) {
@@ -1077,9 +1208,8 @@
     });
     var editing = !!editingId && kind === editingKind;
     var hint = document.getElementById('edit-hint');
-    var actions = document.getElementById('edit-actions');
     if (hint) hint.hidden = !editing;
-    if (actions) actions.hidden = !editing;
+    refreshUntouchedTimes();
   }
 
   function showTab(name) {
@@ -1094,6 +1224,7 @@
     if (name === 'home') {
       renderProfile();
       renderToday();
+      refreshUntouchedTimes();
     }
     if (name === 'history') renderHistory();
   }
@@ -1307,10 +1438,39 @@
     }, 1100);
   }
 
+  function fitFeedType() {
+    var select = document.getElementById('feed-type');
+    var probe = document.getElementById('feed-type-probe');
+    if (!select || !probe) return;
+    var option = select.options[select.selectedIndex];
+    probe.textContent = option ? option.text : '';
+    var width = Math.ceil(probe.getBoundingClientRect().width) + 44;
+    if (width < 72) width = 72;
+    select.style.width = width + 'px';
+  }
+
+  function fitControlInputs(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('.minute-box input').forEach(function (input) {
+      var len = String(input.value || '').length;
+      if (len < 1) len = 1;
+      if (len > 5) len = 5;
+      input.style.width = (len + 0.8) + 'ch';
+    });
+  }
+
+  function editingNote(kind) {
+    if (!editingId || editingKind !== kind) return '';
+    var rec = findRecord(editingId);
+    return rec && typeof rec.note === 'string' ? rec.note : '';
+  }
+
   function syncFeedFields() {
     var breast = document.querySelector('#form-feed [name="feedType"]').value === 'breast';
     document.getElementById('breast-fields').hidden = !breast;
     document.getElementById('bottle-fields').hidden = breast;
+    fitFeedType();
+    fitControlInputs(document.getElementById('form-feed'));
   }
 
   function kindOf(rec) {
@@ -1340,16 +1500,15 @@
     form.elements.leftMin.value = '';
     form.elements.rightMin.value = '';
     form.elements.amountMl.value = '';
-    form.elements.note.value = '';
     clearTime(form.elements.end);
     stampNow(form.querySelector('[name="time"]'));
     clearFormMessage(form);
     restoreSave(form.querySelector('button[type="submit"]'));
+    fitControlInputs(form);
   }
 
   function resetDiaperForm() {
     var form = document.getElementById('form-diaper');
-    form.elements.note.value = '';
     form.querySelectorAll('[name="diaperKind"]').forEach(function (el) { el.checked = false; });
     stampNow(form.querySelector('[name="time"]'));
     clearFormMessage(form);
@@ -1358,7 +1517,6 @@
 
   function resetSleepForm() {
     var form = document.getElementById('form-sleep');
-    form.elements.note.value = '';
     clearTime(form.elements.end);
     stampNow(form.querySelector('[name="time"]'));
     clearFormMessage(form);
@@ -1381,9 +1539,9 @@
     form.elements.leftMin.value = rec.feedType === 'breast' ? String(rec.leftMin) : '';
     form.elements.rightMin.value = rec.feedType === 'breast' ? String(rec.rightMin) : '';
     form.elements.amountMl.value = rec.feedType === 'breast' ? '' : String(rec.amountMl);
-    form.elements.note.value = rec.note || '';
     clearFormMessage(form);
     restoreSave(form.querySelector('button[type="submit"]'));
+    fitControlInputs(form);
   }
 
   function fillDiaper(rec) {
@@ -1392,7 +1550,6 @@
     form.querySelectorAll('[name="diaperKind"]').forEach(function (el) {
       el.checked = el.value === rec.type;
     });
-    form.elements.note.value = rec.note || '';
     clearFormMessage(form);
     restoreSave(form.querySelector('button[type="submit"]'));
   }
@@ -1402,7 +1559,6 @@
     setTimeValue(form.querySelector('[name="time"]'), rec.time);
     if (rec.end) setTimeValue(form.elements.end, rec.end);
     else clearTime(form.elements.end);
-    form.elements.note.value = rec.note || '';
     clearFormMessage(form);
     restoreSave(form.querySelector('button[type="submit"]'));
   }
@@ -1435,17 +1591,21 @@
     if (kind) resetKind(kind);
   }
 
-  function deleteEditing() {
-    if (!editingId) return;
-    var next = removeRecord(data.records, editingId);
-    if (next.length === data.records.length) {
-      cancelEdit();
-      return;
-    }
+  function deleteRecord(id) {
+    if (!id) return;
+    var next = removeRecord(data.records, id);
+    if (next.length === data.records.length) return;
+    var editingThis = editingId === id;
+    var kind = editingKind;
     data.records = next;
     persist();
+    if (editingThis) {
+      editingId = '';
+      editingKind = '';
+      if (kind) resetKind(kind);
+      showKind(kind || 'feed');
+    }
     refreshViews();
-    cancelEdit();
     setStatus('删掉了');
   }
 
@@ -1480,7 +1640,10 @@
 
   function bindFeedForm() {
     var form = document.getElementById('form-feed');
-    form.addEventListener('input', function () { clearFormMessage(form); });
+    form.addEventListener('input', function () {
+      clearFormMessage(form);
+      fitControlInputs(form);
+    });
     form.querySelector('[name="feedType"]').addEventListener('change', function () {
       syncFeedFields();
       clearFormMessage(form);
@@ -1495,7 +1658,7 @@
         left: form.elements.leftMin.value,
         right: form.elements.rightMin.value,
         amount: form.elements.amountMl.value,
-        note: form.elements.note.value
+        note: editingNote('feed')
       });
       if (!result.ok) {
         restoreSave(save);
@@ -1509,10 +1672,10 @@
       form.elements.leftMin.value = '';
       form.elements.rightMin.value = '';
       form.elements.amountMl.value = '';
-      form.elements.note.value = '';
       clearTime(form.elements.end);
       stampNow(form.querySelector('[name="time"]'));
       clearFormMessage(form);
+      fitControlInputs(form);
       markSaved(save);
     });
   }
@@ -1527,7 +1690,7 @@
       var result = validateDiaperInput({
         kind: picked ? picked.value : '',
         time: currentTimeValue(form.querySelector('[name="time"]')),
-        note: form.elements.note.value
+        note: editingNote('diaper')
       });
       if (!result.ok) {
         restoreSave(save);
@@ -1538,7 +1701,6 @@
         showFormMessage(form, '没保存成', false);
         return;
       }
-      form.elements.note.value = '';
       form.querySelectorAll('[name="diaperKind"]').forEach(function (el) { el.checked = false; });
       stampNow(form.querySelector('[name="time"]'));
       clearFormMessage(form);
@@ -1555,7 +1717,7 @@
       var result = validateSleepInput({
         start: currentTimeValue(form.querySelector('[name="time"]')),
         end: form.elements.end.value,
-        note: form.elements.note.value
+        note: editingNote('sleep')
       });
       if (!result.ok) {
         restoreSave(save);
@@ -1567,7 +1729,6 @@
         return;
       }
       clearTime(form.elements.end);
-      form.elements.note.value = '';
       stampNow(form.querySelector('[name="time"]'));
       clearFormMessage(form);
       markSaved(save);
@@ -1661,14 +1822,24 @@
   document.getElementById('app').addEventListener('click', function (event) {
     var editBtn = event.target.closest('[data-edit]');
     if (editBtn) {
+      closeSwipes();
       startEdit(editBtn.getAttribute('data-edit'));
       return;
     }
-    if (event.target.closest('[data-edit-cancel]')) {
-      cancelEdit();
+    var cancelBtn = event.target.closest('[data-form-cancel]');
+    if (cancelBtn) {
+      var form = cancelBtn.closest('form');
+      var kind = form ? form.dataset.kindPanel : '';
+      if (editingId && editingKind === kind) cancelEdit();
+      else if (kind) resetKind(kind);
       return;
     }
-    if (event.target.closest('[data-edit-delete]')) deleteEditing();
+    var deleteBtn = event.target.closest('[data-delete]');
+    if (deleteBtn) deleteRecord(deleteBtn.getAttribute('data-delete'));
+  });
+
+  document.addEventListener('pointerdown', function (event) {
+    if (!event.target.closest('.log-row')) closeSwipes();
   });
 
   document.getElementById('prev-day').addEventListener('click', function () {
@@ -1698,12 +1869,27 @@
   window.addEventListener('resize', fitAvatar);
 
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) catchUpDay();
+    if (document.hidden) return;
+    refreshUntouchedTimes();
+    catchUpDay();
   });
-  window.addEventListener('pageshow', catchUpDay);
+  window.addEventListener('pageshow', function () {
+    refreshUntouchedTimes();
+    catchUpDay();
+  });
   setInterval(catchUpDay, 30000);
 
+  document.querySelectorAll('.minute-box').forEach(function (box) {
+    box.addEventListener('click', function (event) {
+      var input = box.querySelector('input');
+      if (!input || event.target === input) return;
+      input.focus();
+    });
+  });
   syncFeedFields();
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { fitFeedType(); });
+  }
   bindFeedForm();
   bindDiaperForm();
   bindSleepForm();

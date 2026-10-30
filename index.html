@@ -33,7 +33,7 @@
   <p id="status" class="status" role="status"></p>
   <nav class="tabs" id="tabs" role="tablist" aria-label="分页">
     <button type="button" role="tab" data-tab="home" aria-selected="true" aria-controls="panel-home">首页</button>
-    <button type="button" role="tab" data-tab="history" aria-selected="false" aria-controls="panel-history">历史</button>
+    <button type="button" role="tab" data-tab="history" aria-selected="false" aria-controls="panel-history">数据统计</button>
     <button type="button" role="tab" data-tab="settings" aria-selected="false" aria-controls="panel-settings">设置</button>
   </nav>
 
@@ -65,6 +65,7 @@
           <option value="breast_bottle">母乳瓶喂</option>
           <option value="formula">配方奶</option>
         </select>
+        <span id="feed-type-probe" class="select-probe" aria-hidden="true"></span>
         <div id="breast-fields" class="feed-extra">
           <label for="feed-left">左</label>
           <span class="minute-box">
@@ -78,35 +79,37 @@
           </span>
         </div>
         <div id="bottle-fields" class="feed-extra" hidden>
-          <label for="feed-ml">奶量 ml</label>
-          <input id="feed-ml" name="amountMl" type="number" min="1" step="1" inputmode="decimal">
+          <span class="minute-box">
+            <input id="feed-ml" name="amountMl" type="number" min="1" step="1" inputmode="decimal" aria-label="奶量" aria-describedby="feed-ml-unit">
+            <span class="minute-unit" id="feed-ml-unit">ml</span>
+          </span>
         </div>
       </div>
-      <label class="field" for="feed-note">备注
-        <textarea id="feed-note" name="note" rows="2" maxlength="200" placeholder="可空着"></textarea>
-      </label>
       <p class="err" data-err></p>
-      <button type="submit" class="mark-red">保存</button>
+      <div class="form-actions">
+        <button type="submit">保存</button>
+        <button type="button" data-form-cancel>取消</button>
+      </div>
     </form>
 
     <form id="form-diaper" data-kind-panel="diaper" autocomplete="off" novalidate hidden>
-      <div class="time-stack">
+      <div class="diaper-line">
         <div class="time-line">
           <label id="label-diaper-time" for="diaper-time-btn">时间</label>
           <button type="button" id="diaper-time-btn" class="time-field" aria-labelledby="label-diaper-time diaper-time-text"><span class="time-field-text is-empty" id="diaper-time-text">选择时间</span></button>
           <input type="hidden" name="time" data-time="now">
         </div>
+        <div class="choice" role="radiogroup" aria-label="大便、小便或都有">
+          <label class="choice-item"><input type="radio" name="diaperKind" value="poop">大便</label>
+          <label class="choice-item"><input type="radio" name="diaperKind" value="pee">小便</label>
+          <label class="choice-item"><input type="radio" name="diaperKind" value="both">都有</label>
+        </div>
       </div>
-      <div class="choice" role="radiogroup" aria-label="大便、小便或都有">
-        <label class="choice-item"><input type="radio" name="diaperKind" value="poop">大便</label>
-        <label class="choice-item"><input type="radio" name="diaperKind" value="pee">小便</label>
-        <label class="choice-item"><input type="radio" name="diaperKind" value="both">都有</label>
-      </div>
-      <label class="field" for="diaper-note">备注
-        <textarea id="diaper-note" name="note" rows="2" maxlength="200" placeholder="可空着"></textarea>
-      </label>
       <p class="err" data-err></p>
-      <button type="submit" class="mark-yellow">保存</button>
+      <div class="form-actions">
+        <button type="submit">保存</button>
+        <button type="button" data-form-cancel>取消</button>
+      </div>
     </form>
 
     <form id="form-sleep" data-kind-panel="sleep" autocomplete="off" novalidate hidden>
@@ -122,16 +125,12 @@
           <input type="hidden" name="end" data-time="empty">
         </div>
       </div>
-      <label class="field" for="sleep-note">备注
-        <textarea id="sleep-note" name="note" rows="2" maxlength="200" placeholder="可空着"></textarea>
-      </label>
       <p class="err" data-err></p>
-      <button type="submit" class="mark-blue">保存</button>
+      <div class="form-actions">
+        <button type="submit">保存</button>
+        <button type="button" data-form-cancel>取消</button>
+      </div>
     </form>
-    <div class="edit-actions" id="edit-actions" hidden>
-      <button type="button" data-edit-cancel>取消</button>
-      <button type="button" data-edit-delete>删除</button>
-    </div>
     </div>
     <h2 class="today-title">今天</h2>
     <div class="stat-grid" id="today-stats" aria-label="今日统计"></div>
@@ -150,7 +149,7 @@
     </div>
     <div class="stat-grid" id="history-stats" aria-label="当日统计"></div>
     <p class="hint" id="history-hint">亲喂只计次数，不换算毫升</p>
-    <p id="history-empty" class="empty" hidden>这一天还没记下。</p>
+    <div id="history-list"></div>
     <div class="tools history-tools">
       <button type="button" id="export-btn" class="mark-yellow">导出数据</button>
       <button type="button" id="import-btn" class="mark-teal">导入数据</button>
@@ -179,9 +178,6 @@
     <p class="saved-note" id="settings-saved" role="status"></p>
   </section>
 
-  <footer class="foot">
-    <p>慢慢记，就好</p>
-  </footer>
 </main>
 <div id="time-sheet" class="time-sheet" hidden>
   <div class="time-sheet-backdrop" data-cancel></div>
